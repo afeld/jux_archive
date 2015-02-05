@@ -81,21 +81,18 @@ Archive = Struct.new(*headers) do
     "https://web.archive.org/web/#{self.timestamp}id_/#{encoded_url}"
   end
 
+  def ok?
+    self.statuscode == '200'
+  end
+
   def time_int
     self.timestamp.to_i
   end
 end
 
 archives = archives_json.map { |archive_json| Archive.new(*archive_json) }
-
-archives_by_url = {}
-archives.each do |archive|
-  if archive.statuscode == '200'
-    url = archive.url
-    archives_by_url[url] ||= []
-    archives_by_url[url] << archive
-  end
-end
+archives.select!(&:ok?)
+archives_by_url = archives.group_by(&:url)
 
 latest_archives = archives_by_url.map do |url, page_archives|
   page_archives.max_by(&:time_int)
