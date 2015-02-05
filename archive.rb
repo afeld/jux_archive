@@ -23,7 +23,8 @@ end
 
 # http://andrey.chernih.me/2014/05/29/downloading-multiple-files-in-ruby-simultaneously/#typhoeus
 def download_typhoeus(archives, concurrency=5)
-  `mkdir -p downloads`
+  `rm -rf downloads`
+  `mkdir downloads`
 
   hydra = Typhoeus::Hydra.new(max_concurrency: concurrency)
 
@@ -45,8 +46,14 @@ end
 
 
 # https://github.com/internetarchive/wayback/tree/master/wayback-cdx-server#readme
-HOST = 'afeld.me'
-archives_str = open("http://web.archive.org/cdx/search/cdx?url=#{HOST}&matchType=host&output=json").read
+data_uri = Addressable::URI.parse('http://web.archive.org/cdx/search/cdx')
+data_uri.query_values = {
+  url: 'afeld.me',
+  matchType: 'host',
+  output: 'json'
+}
+
+archives_str = open(data_uri.to_s).read
 archives_json = JSON.parse(archives_str)
 headers = archives_json.shift.map(&:to_sym)
 
