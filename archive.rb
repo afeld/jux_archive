@@ -50,8 +50,11 @@ data_uri = Addressable::URI.parse('http://web.archive.org/cdx/search/cdx')
 data_uri.query_values = {
   url: 'afeld.me',
   matchType: 'host',
+  # before shutting down after Nov 2014
+  to: '201411',
   output: 'json'
 }
+puts "Fetching from #{data_uri.to_s}"
 
 archives_str = open(data_uri.to_s).read
 archives_json = JSON.parse(archives_str)
@@ -99,3 +102,5 @@ latest_archives = archives_by_url.map do |url, page_archives|
 end
 
 download_typhoeus(latest_archives)
+
+puts "#{latest_archives.size} pages downloaded."
