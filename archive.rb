@@ -35,16 +35,22 @@ def download_typhoeus(urls, concurrency=5)
 end
 
 
+# https://github.com/internetarchive/wayback/tree/master/wayback-cdx-server#readme
 HOST = 'afeld.me'
-# collapse=urlkey
 archives_str = open("http://web.archive.org/cdx/search/cdx?url=#{HOST}&matchType=host&output=json").read
 archives_json = JSON.parse(archives_str)
-
 headers = archives_json.shift.map(&:to_sym)
+
 Archive = Struct.new(*headers) do
   def url
     uri = Addressable::URI.parse(self.original)
     uri.normalize.to_s
+  end
+
+  def download_url
+    # http://stackoverflow.com/a/26398284/358804
+    encoded_url = Addressable::URI.encode_component(url, Addressable::URI::CharacterClasses::PATH)
+    "https://web.archive.org/web/#{archive.timestamp}/#{encoded_url}"
   end
 
   def time_int
@@ -65,9 +71,7 @@ end
 
 download_urls = archives_by_url.map do |url, page_archives|
   archive = page_archives.max_by(&:time_int)
-  # http://stackoverflow.com/a/26398284/358804
-  encoded_url = Addressable::URI.encode_component(url, Addressable::URI::CharacterClasses::PATH)
-  "https://web.archive.org/web/#{archive.timestamp}/#{encoded_url}"
+  archive.download_url
 end
 
 download_typhoeus(download_urls)
