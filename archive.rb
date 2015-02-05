@@ -33,7 +33,7 @@ def download_typhoeus(archives, concurrency=5)
     request.on_complete do |response|
       uri = archive.uri
       basename = friendly_filename("#{uri.path} #{uri.query}")
-      File.open("downloads/#{basename}.html", "w") do |output|
+      File.open("downloads/#{basename}#{archive.download_extname}", "w") do |output|
         output << response.body
       end
       puts "Completed #{archive.url}"
@@ -49,7 +49,7 @@ end
 data_uri = Addressable::URI.parse('http://web.archive.org/cdx/search/cdx')
 data_uri.query_values = {
   url: 'afeld.me',
-  matchType: 'host',
+  matchType: 'prefix',
   # before shutting down after Nov 2014
   to: '201411',
   output: 'json'
@@ -75,10 +75,19 @@ Archive = Struct.new(*headers) do
   end
 
   def download_url
-    # http://stackoverflow.com/a/26398284/358804
-    encoded_url = Addressable::URI.encode_component(self.url, Addressable::URI::CharacterClasses::PATH)
     # http://www.archiveteam.org/index.php?title=Restoring#Unmodified_pages
-    "https://web.archive.org/web/#{self.timestamp}id_/#{encoded_url}"
+    "https://web.archive.org/web/#{self.timestamp}id_/#{self.url}"
+  end
+
+  def download_extname
+    extname = self.uri.extname
+    if extname == '.js'
+      '.json'
+    elsif !extname.empty?
+      extname
+    else
+      '.html'
+    end
   end
 
   def ok?
