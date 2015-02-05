@@ -16,12 +16,17 @@ require 'typhoeus'
 
 # http://andrey.chernih.me/2014/05/29/downloading-multiple-files-in-ruby-simultaneously/#typhoeus
 def download_typhoeus(urls, concurrency=5)
+  `mkdir -p downloads`
+
   hydra = Typhoeus::Hydra.new(max_concurrency: concurrency)
 
   urls.each do |url|
     request = Typhoeus::Request.new url
     request.on_complete do |response|
-      write_file url, response.body
+      basename = url.gsub(/[^\w\d]+/, '_')
+      File.open("downloads/#{basename}.html", "w") do |output|
+        output << response.body
+      end
     end
     hydra.queue request
   end
@@ -65,5 +70,4 @@ download_urls = archives_by_url.map do |url, page_archives|
   "https://web.archive.org/web/#{archive.timestamp}/#{encoded_url}"
 end
 
-# download_typhoeus(download_urls)
-puts download_urls
+download_typhoeus(download_urls)
