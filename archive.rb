@@ -29,7 +29,7 @@ def download_typhoeus(archives, concurrency=5)
   hydra = Typhoeus::Hydra.new(max_concurrency: concurrency)
 
   archives.each do |archive|
-    request = Typhoeus::Request.new(archive.url)
+    request = Typhoeus::Request.new(archive.download_url)
     request.on_complete do |response|
       uri = archive.uri
       basename = friendly_filename("#{uri.path} #{uri.query}")
