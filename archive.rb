@@ -15,15 +15,16 @@ require 'typhoeus'
 
 
 # http://andrey.chernih.me/2014/05/29/downloading-multiple-files-in-ruby-simultaneously/#typhoeus
-def download_typhoeus(urls, concurrency=5)
+def download_typhoeus(archives, concurrency=5)
   `mkdir -p downloads`
 
   hydra = Typhoeus::Hydra.new(max_concurrency: concurrency)
 
-  urls.each do |url|
-    request = Typhoeus::Request.new url
+  archives.each do |archive|
+    request = Typhoeus::Request.new(archive.url)
     request.on_complete do |response|
-      basename = url.gsub(/[^\w\d]+/, '_')
+      uri = archive.uri
+      basename = "#{uri.path} #{uri.query}".strip.gsub(/[^\w\d]+/, '_')
       File.open("downloads/#{basename}.html", "w") do |output|
         output << response.body
       end
@@ -42,15 +43,18 @@ archives_json = JSON.parse(archives_str)
 headers = archives_json.shift.map(&:to_sym)
 
 Archive = Struct.new(*headers) do
+  def uri
+    Addressable::URI.parse(self.original).normalize
+  end
+
   def url
-    uri = Addressable::URI.parse(self.original)
-    uri.normalize.to_s
+    self.uri.normalize.to_s
   end
 
   def download_url
     # http://stackoverflow.com/a/26398284/358804
-    encoded_url = Addressable::URI.encode_component(url, Addressable::URI::CharacterClasses::PATH)
-    "https://web.archive.org/web/#{archive.timestamp}/#{encoded_url}"
+    encoded_url = Addressable::URI.encode_component(self.url, Addressable::URI::CharacterClasses::PATH)
+    "https://web.archive.org/web/#{self.timestamp}/#{encoded_url}"
   end
 
   def time_int
@@ -69,9 +73,8 @@ archives.each do |archive|
   end
 end
 
-download_urls = archives_by_url.map do |url, page_archives|
-  archive = page_archives.max_by(&:time_int)
-  archive.download_url
+latest_archives = archives_by_url.map do |url, page_archives|
+  page_archives.max_by(&:time_int)
 end
 
-download_typhoeus(download_urls)
+download_typhoeus(latest_archives)
