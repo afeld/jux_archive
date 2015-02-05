@@ -14,6 +14,13 @@ require 'addressable/uri'
 require 'typhoeus'
 
 
+def friendly_filename(filename)
+  filename.
+    strip.
+    gsub(/^[^\w\d]+|[^\w\d]+$/, '').
+    gsub(/[^\w\d]+/, '_')
+end
+
 # http://andrey.chernih.me/2014/05/29/downloading-multiple-files-in-ruby-simultaneously/#typhoeus
 def download_typhoeus(archives, concurrency=5)
   `mkdir -p downloads`
@@ -24,10 +31,11 @@ def download_typhoeus(archives, concurrency=5)
     request = Typhoeus::Request.new(archive.url)
     request.on_complete do |response|
       uri = archive.uri
-      basename = "#{uri.path} #{uri.query}".strip.gsub(/[^\w\d]+/, '_')
+      basename = friendly_filename("#{uri.path} #{uri.query}")
       File.open("downloads/#{basename}.html", "w") do |output|
         output << response.body
       end
+      puts "Completed #{archive.url}"
     end
     hydra.queue request
   end
@@ -44,17 +52,23 @@ headers = archives_json.shift.map(&:to_sym)
 
 Archive = Struct.new(*headers) do
   def uri
-    Addressable::URI.parse(self.original).normalize
+    normalized_uri = Addressable::URI.parse(self.original).normalize
+    # treat /foo and /foo/ as identical
+    if normalized_uri.extname.empty? && !normalized_uri.path.end_with?('/')
+      normalized_uri.path += '/'
+    end
+    normalized_uri
   end
 
   def url
-    self.uri.normalize.to_s
+    self.uri.to_s
   end
 
   def download_url
     # http://stackoverflow.com/a/26398284/358804
     encoded_url = Addressable::URI.encode_component(self.url, Addressable::URI::CharacterClasses::PATH)
-    "https://web.archive.org/web/#{self.timestamp}/#{encoded_url}"
+    # http://www.archiveteam.org/index.php?title=Restoring#Unmodified_pages
+    "https://web.archive.org/web/#{self.timestamp}id_/#{encoded_url}"
   end
 
   def time_int
